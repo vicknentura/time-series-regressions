@@ -1,0 +1,133 @@
+# Autoregression ACF Plot
+
+import pandas as pd
+from matplotlib import pyplot as plt
+from sklearn.model_selection import train_test_split
+from statsmodels.graphics.tsaplots import plot_acf
+
+data = pd.read_csv("/datasets/Alcohol_Sales.csv", index_col=[0], parse_dates=[0])
+train, test = train_test_split(data, shuffle=False, test_size=0.15)
+
+lags_to_check = 50
+acf = plot_acf(x=train, lags=lags_to_check)
+
+plt.xlabel("Lags")
+plt.ylabel("ACF")
+plt.show()
+
+
+import pandas as pd
+from matplotlib import pyplot as plt
+from sklearn.model_selection import train_test_split
+from statsmodels.graphics.tsaplots import plot_pacf
+
+data = pd.read_csv("/datasets/Alcohol_Sales.csv", index_col=[0], parse_dates=[0])
+train, test = train_test_split(data, shuffle=False, test_size=0.15)
+
+lags_to_check = 50
+pacf = plot_pacf(x=train, lags=lags_to_check)
+
+plt.xlabel("Lags")
+plt.ylabel("PACF")
+plt.show()
+
+
+import pandas as pd
+from matplotlib import pyplot as plt
+from sklearn.model_selection import train_test_split
+from statsmodels.tsa.ar_model import AutoReg, ar_select_order
+
+# read data and split into training and test sets
+data = pd.read_csv("/datasets/Alcohol_Sales.csv", index_col=[0], parse_dates=[0])
+train, test = train_test_split(data, shuffle=False, test_size=0.15)
+
+# find optimal number of lags
+mod = ar_select_order(endog=train, maxlag=30)
+ar_order = mod.ar_lags
+
+# create AR model and fit it using the training set
+ar_model = AutoReg(train, lags=ar_order, seasonal=True)
+ar_model = ar_model.fit()
+
+# make predictions
+start_value = len(train)
+end_value = len(train) + len(test) - 1
+ar_pred = ar_model.predict(start=start_value, end=end_value, dynamic=False)
+
+# plot results
+plt.plot(ar_pred, color='blue', label='pred')
+plt.plot(test, color='red', label='test')
+plt.legend(loc="upper left")
+plt.xticks(rotation=90)
+plt.show()
+
+
+# ARIMA
+#The error message you're encountering indicates that the order argument passed to the ARIMA model must be a tuple with exactly three elements: (p, d, q), where:
+
+p is the number of autoregressive terms,
+d is the number of differences needed to make the series stationary,
+q is the number of lagged forecast errors in the prediction equation.
+
+
+import pandas as pd
+from statsmodels.tsa.arima.model import ARIMA
+from sklearn.model_selection import train_test_split
+from statsmodels.tsa.stattools import arma_order_select_ic
+from sklearn.metrics import mean_absolute_error
+
+# read data and split into training and test sets
+data = pd.read_csv("/datasets/Alcohol_Sales.csv", index_col=[0], parse_dates=[0])
+train, test = train_test_split(data, shuffle=False, test_size=0.15)
+
+# find best MA model order
+res = arma_order_select_ic(y=train, max_ar=0, max_ma=10)
+ma_order = res.bic_min_order[1]
+
+# create and fit MA model
+ma_model = ARIMA(train, order=(0, 0, ma_order))
+ma_model = ma_model.fit()
+
+# make predictions
+start_value = len(train)
+end_value = len(train) + len(test) - 1
+ma_pred = ma_model.predict(start=start_value, end=end_value, dynamic=False)
+
+# calculate MAE of predictions
+ma_mae_value = mean_absolute_error(test, ma_pred)
+print(ma_mae_value)
+
+
+
+# Function to check stationarity
+def check_stationarity(data):
+    result = adfuller(data)
+    return result[1] <= 0.05  # p-value < 0.05 indicates stationarity
+
+# Assuming target_train is defined
+if not check_stationarity(target_train):
+    # Differencing the data
+    target_train_diff = target_train.diff().dropna()
+    
+    # Find the best order for ARIMA model on differenced data
+    res = arma_order_select_ic(y=target_train_diff, max_ar=2, max_ma=2)
+    best_order = res.bic_min_order
+    best_order = (best_order[0], 1, best_order[1])  # Set d=1 for differencing
+else:
+    # If already stationary, find the best order directly
+    res = arma_order_select_ic(y=target_train, max_ar=2, max_ma=2)
+    best_order = res.bic_min_order
+    best_order = (best_order[0], 0, best_order[1])  # Set d=0 if no differencing needed
+
+# Create and fit the ARIMA model
+arima_model = ARIMA(target_train, order=best_order)
+arima_model_fit = arima_model.fit()
+
+# Make predictions
+start_value = len(target_train)
+end_value = len(target_train) + len(target_test) - 1
+arima_pred = arima_model_fit.predict(start=start_value, end=end_value, dynamic=False)
+
+# Calculate RMSE of predictions
+rmse_value = np.sqrt(mean_squared_error(target_test, arima_pred))
+print("Root Mean Squared Error (RMSE):", rmse_value)

@@ -1,0 +1,241 @@
+#Time Series
+
+import pandas as pd
+import matplotlib.pyplot as plt
+
+data = pd.read_csv(
+    '/datasets/energy_consumption.csv', index_col=[0], parse_dates=[0]
+)
+data.sort_index(inplace=True)
+data = data['2018-01':'2018-06']
+
+plt.figure(figsize = (10,6))
+data.plot()
+plt.title('Energy Consumption from Jan to Jun 2018')
+plt.xlabel('Date')
+plt.ylabel('Energy Consumption')
+plt.show()
+
+
+# Resampling
+import pandas as pd
+
+data = pd.read_csv(
+    '/datasets/energy_consumption.csv', index_col=[0], parse_dates=[0]
+)
+data.sort_index(inplace=True)
+data = data['2018-01':'2018-06'].resample('1D').sum()
+data.plot()
+
+
+# Rolling Mean
+
+import pandas as pd
+
+data = pd.read_csv(
+    '/datasets/energy_consumption.csv', index_col=[0], parse_dates=[0]
+)
+data.sort_index(inplace=True)
+data = data['2018-01':'2018-06'].resample('1D').sum()
+data['rolling_mean'] = data.rolling(10).mean()
+data.plot()
+
+
+# Trends and Seasonality
+
+import pandas as pd
+from statsmodels.tsa.seasonal import seasonal_decompose
+import matplotlib.pyplot as plt
+
+data = pd.read_csv(
+    '/datasets/energy_consumption.csv', index_col=[0], parse_dates=[0]
+)
+data.sort_index(inplace=True)
+data = data['2018-01':'2018-06'].resample('1D').sum()
+
+decomposed = seasonal_decompose(data, model = 'additive')
+
+plt.figure(figsize=(6, 8))
+plt.subplot(311)
+decomposed.trend.plot(ax=plt.gca())
+plt.title('Trend')
+plt.subplot(312)
+decomposed.seasonal.plot(ax=plt.gca())
+plt.title('Seasonality')
+plt.subplot(313)
+decomposed.resid.plot(ax=plt.gca())
+plt.title('Residuals')
+plt.tight_layout()
+
+# Plot the seasonal component for the first 15 days of January 2018
+plt.figure(figsize=(10, 6))
+decomposed.seasonal['2018-01-01':'2018-01-15'].plot()
+plt.title('Seasonal Component for the first 15 days of January 2018')
+plt.xlabel('Date')
+plt.ylabel('Seasonal Component')
+plt.show()
+
+
+# Time Series Differences
+
+import pandas as pd
+
+data = pd.read_csv(
+    '/datasets/energy_consumption.csv', index_col=[0], parse_dates=[0]
+)
+data.sort_index(inplace=True)
+data = data['2018-01':'2018-06'].resample('1D').sum()
+data -= data.shift()
+data['mean'] = data['PJME_MW'].rolling(15).mean()
+data['std'] = data['PJME_MW'].rolling(15).std()
+data.plot()
+
+
+# Forecast Accuracy
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error
+
+
+data = pd.read_csv(
+    '/datasets/energy_consumption.csv', index_col=[0], parse_dates=[0]
+)
+data.sort_index(inplace=True)
+data = data.resample('1D').sum()
+
+train, test = train_test_split(data, shuffle=False, test_size=0.2)
+
+print('Median daily power consumption:', test['PJME_MW'].median())
+pred_median = np.ones(test.shape) * train['PJME_MW'].median()
+print('MAE:', mean_absolute_error(test, pred_median))
+
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_absolute_error
+
+
+data = pd.read_csv(
+    '/datasets/energy_consumption.csv', index_col=[0], parse_dates=[0]
+)
+data.sort_index(inplace=True)
+data = data.resample('1D').sum()
+
+train, test = train_test_split(data, shuffle=False, test_size=0.2)
+
+print('Median daily power consumption:', test['PJME_MW'].median())
+
+pred_previous = test.shift()
+pred_previous.iloc[0] = train.iloc[-1]
+print('MAE:', mean_absolute_error(test, pred_previous))
+
+
+# Creating Features
+
+import pandas as pd
+import numpy as np
+
+data = pd.read_csv(
+    '/datasets/energy_consumption.csv', index_col=[0], parse_dates=[0]
+)
+data.sort_index(inplace=True)
+data = data.resample('D').sum()
+
+def make_features(df, max_lag):
+    df['year'] = df.index.year
+    df['month'] = df.index.month
+    df['day'] = df.index.day
+    df['dayofweek'] = df.index.dayofweek
+    
+    for i in range(1, max_lag + 1):
+        df[f'lag_{i}'] = data['PJME_MW'].shift(i)
+
+make_features(data, 4)
+print(data.head())
+
+
+import pandas as pd
+import numpy as np
+
+
+data = pd.read_csv(
+    '/datasets/energy_consumption.csv', index_col=[0], parse_dates=[0]
+)
+data.sort_index(inplace=True)
+data = data.resample('1D').sum()
+
+
+def make_features(data, max_lag, rolling_mean_size):
+    data['year'] = data.index.year
+    data['month'] = data.index.month
+    data['day'] = data.index.day
+    data['dayofweek'] = data.index.dayofweek
+
+    for lag in range(1, max_lag + 1):
+        data['lag_{}'.format(lag)] = data['PJME_MW'].shift(lag)
+
+    data['rolling_mean'] = (
+        data['PJME_MW'].shift().rolling(rolling_mean_size).mean()
+    )
+
+
+make_features(data, 4, 4)
+print(data.head())
+
+
+# Model Training
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error
+
+
+data = pd.read_csv(
+    '/datasets/energy_consumption.csv', index_col=[0], parse_dates=[0]
+)
+data.sort_index(inplace=True)
+data = data.resample('D').sum()
+
+
+def make_features(data, max_lag, rolling_mean_size):
+    data['year'] = data.index.year
+    data['month'] = data.index.month
+    data['day'] = data.index.day
+    data['dayofweek'] = data.index.dayofweek
+
+    for lag in range(1, max_lag + 1):
+        data['lag_{}'.format(lag)] = data['PJME_MW'].shift(lag)
+
+    data['rolling_mean'] = (
+        data['PJME_MW'].shift().rolling(rolling_mean_size).mean()
+    )
+
+
+make_features(data, 6, 10)
+
+train, test = train_test_split(data, shuffle=False, test_size=0.2)
+train = train.dropna()
+
+# Select the features and the target
+X_train = train[['year', 'month', 'day', 'dayofweek', 'lag_1', 'lag_2', 'lag_3', 'lag_4', 'lag_5', 'lag_6', 'rolling_mean']]
+y_train = train['PJME_MW']
+
+X_test = test[['year', 'month', 'day', 'dayofweek', 'lag_1', 'lag_2', 'lag_3', 'lag_4', 'lag_5', 'lag_6', 'rolling_mean']]
+y_test = test['PJME_MW']
+
+# Train the linear regression model
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+# Make predictions
+y_pred_train = model.predict(X_train)
+y_pred_test = model.predict(X_test)
+
+# Print the MAE values
+print("MAE for the training set:", mean_absolute_error(y_train, y_pred_train))
+print("MAE for the test set: ", mean_absolute_error(y_test, y_pred_test))
